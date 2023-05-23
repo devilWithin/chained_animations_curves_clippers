@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 enum Circle {
   right,
@@ -53,32 +54,73 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _counterClockwiseRotationAnimationController;
+  late Animation<double> _counterClockwiseRotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _counterClockwiseRotationAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _counterClockwiseRotationAnimation = Tween<double>(
+      begin: 0,
+      end: (-pi / 2),
+    ).animate(
+      CurvedAnimation(
+        parent: _counterClockwiseRotationAnimationController,
+        curve: Curves.bounceOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _counterClockwiseRotationAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    Future.delayed(const Duration(seconds: 1), () {
+      _counterClockwiseRotationAnimationController
+        ..reset()
+        ..forward();
+    });
+
     return Scaffold(
       body: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ClipPath(
-              clipper: HalfCircle(circle: Circle.left),
-              child: Container(
-                height: 100,
-                width: 100,
-                color: Colors.blue,
-              ),
+        child: AnimatedBuilder(
+          animation: _counterClockwiseRotationAnimation,
+          builder: (context, child) => Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..rotateZ(_counterClockwiseRotationAnimation.value),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ClipPath(
+                  clipper: HalfCircle(circle: Circle.left),
+                  child: Container(
+                    height: 100,
+                    width: 100,
+                    color: Colors.blue,
+                  ),
+                ),
+                ClipPath(
+                  clipper: HalfCircle(circle: Circle.right),
+                  child: Container(
+                    height: 100,
+                    width: 100,
+                    color: Colors.yellow,
+                  ),
+                ),
+              ],
             ),
-            ClipPath(
-              clipper: HalfCircle(circle: Circle.right),
-              child: Container(
-                height: 100,
-                width: 100,
-                color: Colors.yellow,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
