@@ -35,6 +35,12 @@ extension ToPath on Circle {
   }
 }
 
+extension on VoidCallback {
+  Future<void> delayedOneSecond() async {
+    Future.delayed(const Duration(seconds: 1), this);
+  }
+}
+
 class HalfCircle extends CustomClipper<Path> {
   final Circle circle;
 
@@ -54,10 +60,11 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   late AnimationController _counterClockwiseRotationAnimationController;
   late Animation<double> _counterClockwiseRotationAnimation;
+  late AnimationController _flipController;
+  late Animation<double> _flipAnimation;
 
   @override
   void initState() {
@@ -75,50 +82,108 @@ class _MyHomePageState extends State<MyHomePage>
         curve: Curves.bounceOut,
       ),
     );
+    _flipController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _flipAnimation = Tween<double>(begin: 0, end: -pi).animate(
+      CurvedAnimation(
+        parent: _flipController,
+        curve: Curves.bounceOut,
+      ),
+    );
+
+    _counterClockwiseRotationAnimationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _flipAnimation = Tween<double>(
+                begin: _flipAnimation.value, end: _flipAnimation.value + pi)
+            .animate(
+          CurvedAnimation(
+            parent: _flipController,
+            curve: Curves.bounceOut,
+          ),
+        );
+        _flipController
+          ..reset()
+          ..forward();
+      }
+    });
+    _flipAnimation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _counterClockwiseRotationAnimation = Tween<double>(
+          begin: _counterClockwiseRotationAnimation.value,
+          end: _counterClockwiseRotationAnimation.value - (pi / 2),
+        ).animate(
+          CurvedAnimation(
+            parent: _counterClockwiseRotationAnimationController,
+            curve: Curves.bounceOut,
+          ),
+        );
+        _counterClockwiseRotationAnimationController
+          ..reset()
+          ..forward();
+      }
+    });
   }
 
   @override
   void dispose() {
     _counterClockwiseRotationAnimationController.dispose();
+    _flipController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    Future.delayed(const Duration(seconds: 1), () {
-      _counterClockwiseRotationAnimationController
-        ..reset()
-        ..forward();
-    });
-
+    _counterClockwiseRotationAnimationController
+      ..reset()
+      ..forward.delayedOneSecond();
     return Scaffold(
       body: SafeArea(
-        child: AnimatedBuilder(
-          animation: _counterClockwiseRotationAnimation,
-          builder: (context, child) => Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..rotateZ(_counterClockwiseRotationAnimation.value),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ClipPath(
-                  clipper: HalfCircle(circle: Circle.left),
-                  child: Container(
-                    height: 100,
-                    width: 100,
-                    color: Colors.blue,
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _counterClockwiseRotationAnimation,
+            builder: (context, child) => Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..rotateZ(_counterClockwiseRotationAnimation.value),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _flipAnimation,
+                    builder: (context, child) => Transform(
+                      transform: Matrix4.identity()
+                        ..rotateY(_flipAnimation.value),
+                      alignment: Alignment.centerRight,
+                      child: ClipPath(
+                        clipper: HalfCircle(circle: Circle.left),
+                        child: Container(
+                          height: 100,
+                          width: 100,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                ClipPath(
-                  clipper: HalfCircle(circle: Circle.right),
-                  child: Container(
-                    height: 100,
-                    width: 100,
-                    color: Colors.yellow,
+                  AnimatedBuilder(
+                    animation: _flipAnimation,
+                    builder: (context, child) => Transform(
+                      transform: Matrix4.identity()
+                        ..rotateY(_flipAnimation.value),
+                      alignment: Alignment.centerLeft,
+                      child: ClipPath(
+                        clipper: HalfCircle(circle: Circle.right),
+                        child: Container(
+                          height: 100,
+                          width: 100,
+                          color: Colors.yellow,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
